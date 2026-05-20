@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KYC Verification — beyound</title>
+  <meta name="description" content="Complete your KYC verification for the beyound platform. Powered by HyperVerge.">
+  <meta name="theme-color" content="#059669">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta property="og:title" content="KYC Verification — beyound">
+  <meta property="og:description" content="Complete your KYC verification for the beyound platform.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://kyc.beyound.in">
+  <link rel="canonical" href="https://kyc.beyound.in/">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%23059669'/><text x='50' y='68' text-anchor='middle' font-size='52' font-weight='700' font-family='system-ui' fill='white'>b</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://hv-web-sdk-cdn.hyperverge.co" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- HyperVerge Web SDK. Pinned to @latest so the CDN serves the
+       newest stable bundle without us re-deploying on every patch. If
+       a specific build needs to be pinned, replace `latest` with a
+       SemVer from https://hv-web-sdk-cdn.hyperverge.co/ -->
+  <script src="https://hv-web-sdk-cdn.hyperverge.co/hyperverge-web-sdk@latest/src/sdk.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body { scrollbar-width: none; -ms-overflow-style: none; }
+    html::-webkit-scrollbar, body::-webkit-scrollbar { width: 0; height: 0; display: none; }
+    *::-webkit-scrollbar { width: 0; height: 0; display: none; }
+
+    :root {
+      --brand: #059669;
+      --brand-dark: #047857;
+      --brand-soft: rgba(5, 150, 105, 0.08);
+      --brand-glow: rgba(5, 150, 105, 0.18);
+      --ink: #0F172A;
+      --ink-soft: #1F2937;
+      --muted: #475569;
+      --muted-soft: #94A3B8;
+      --line: #E2E8F0;
+      --bg: #ffffff;
+      --bg-soft: #F8FAFC;
+      --success: #059669;
+      --warning: #D97706;
+      --danger: #DC2626;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Sora', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .site-header {
+      padding: 18px clamp(20px, 5vw, 32px);
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      max-width: 1100px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .brand-lockup {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--ink);
+    }
+    .brand-mark {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+      color: #fff;
+      font-weight: 700;
+      font-size: 18px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 14px var(--brand-glow);
+    }
+    .brand-name {
+      font-weight: 800;
+      font-size: 20px;
+      letter-spacing: -0.6px;
+    }
+    .brand-suffix {
+      color: var(--muted);
+      font-weight: 500;
+      font-size: 14px;
+      letter-spacing: 1px;
+      margin-left: 8px;
+      text-transform: uppercase;
+    }
+
+    main {
+      flex: 1;
+      width: 100%;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: clamp(40px, 8vw, 80px) clamp(20px, 5vw, 32px) 56px;
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+
+    .eyebrow {
+      display: inline-block;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: var(--brand-soft);
+      color: var(--brand);
+      font-size: 12px;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      font-weight: 600;
+      width: fit-content;
+    }
+
+    h1 {
+      font-size: clamp(32px, 5vw, 44px);
+      font-weight: 800;
+      letter-spacing: -1.2px;
+      line-height: 1.1;
+    }
+
+    .lede {
+      font-size: 17px;
+      color: var(--muted);
+      max-width: 560px;
+      line-height: 1.65;
+    }
+
+    .checklist {
+      list-style: none;
+      display: grid;
+      gap: 12px;
+      margin-top: 8px;
+    }
+    .checklist li {
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      gap: 14px;
+      align-items: center;
+      font-size: 15px;
+      color: var(--ink-soft);
+    }
+    .checklist li::before {
+      content: "";
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--brand-soft);
+      background-image: linear-gradient(135deg, var(--brand-soft), var(--brand-soft));
+      position: relative;
+    }
+    .checklist li {
+      position: relative;
+    }
+    .checklist li::after {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      width: 28px;
+      text-align: center;
+      color: var(--brand);
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      margin-top: 8px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 16px 28px;
+      border: none;
+      border-radius: 14px;
+      font-family: inherit;
+      font-weight: 600;
+      font-size: 16px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease, opacity 120ms ease;
+    }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+      color: #fff;
+      box-shadow: 0 8px 24px var(--brand-glow);
+    }
+    .btn-primary:not(:disabled):hover {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 28px var(--brand-glow);
+    }
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--line);
+    }
+    .btn-ghost:hover { color: var(--ink); border-color: var(--ink); }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.4);
+      border-top-color: #fff;
+      animation: spin 0.8s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .status {
+      padding: 16px 20px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: var(--bg-soft);
+      font-size: 14px;
+      color: var(--ink-soft);
+      display: none;
+    }
+    .status.show { display: block; }
+    .status.success { border-color: var(--success); background: rgba(5, 150, 105, 0.06); color: #065F46; }
+    .status.warning { border-color: var(--warning); background: rgba(217, 119, 6, 0.06); color: #92400E; }
+    .status.danger  { border-color: var(--danger);  background: rgba(220, 38, 38, 0.06);  color: #991B1B; }
+    .status .title { font-weight: 600; margin-bottom: 4px; }
+    .status .detail { font-size: 13px; color: inherit; opacity: 0.85; }
+
+    .meta {
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid var(--line);
+      font-size: 13px;
+      color: var(--muted);
+      display: grid;
+      gap: 8px;
+    }
+    .meta strong { color: var(--ink); font-weight: 600; }
+    .meta a { color: var(--brand); text-decoration: none; }
+    .meta a:hover { text-decoration: underline; }
+
+    .site-footer {
+      border-top: 1px solid var(--line);
+      background: var(--bg-soft);
+      padding: 24px clamp(20px, 5vw, 32px);
+      text-align: center;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+    .site-footer p { margin: 0; }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand-lockup" href="https://beyound.in" aria-label="beyound home">
+      <span class="brand-mark">b</span>
+      <span class="brand-name">beyound</span>
+      <span class="brand-suffix">KYC</span>
+    </a>
+  </header>
+
+  <main>
+    <div>
+      <span class="eyebrow">Identity verification</span>
+    </div>
+
+    <h1>Verify your identity to continue.</h1>
+
+    <p class="lede">
+      Beyound uses HyperVerge — an RBI-aligned KYC partner — to verify your
+      identity quickly and securely. The whole flow takes about 2 minutes and
+      runs entirely in your browser.
+    </p>
+
+    <ul class="checklist">
+      <li>Keep your Aadhaar or PAN handy</li>
+      <li>Allow camera access for the live selfie step</li>
+      <li>Have decent lighting and a steady hand</li>
+    </ul>
+
+    <div class="actions">
+      <button id="launch" class="btn btn-primary" type="button">
+        <span class="label">Start KYC verification</span>
+      </button>
+      <a class="btn btn-ghost" href="https://beyound.in" rel="noopener">Back to beyound</a>
+    </div>
+
+    <div id="status" class="status" role="status" aria-live="polite"></div>
+
+    <div class="meta">
+      <p><strong>Privacy.</strong> Your documents are processed by HyperVerge under their security and privacy controls. See the <a href="https://beyound.in/policies/privacy.html" rel="noopener">Beyound privacy policy</a> for what we retain on our end.</p>
+      <p><strong>Need help?</strong> Email <a href="mailto:support@beyound.in">support@beyound.in</a>.</p>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <p>&copy; 2026 BeyoundExtra Tech Private Limited. All rights reserved.</p>
+  </footer>
+
+  <script>
+    // ────────────────────────────────────────────────────────────────────────
+    // Config
+    // ────────────────────────────────────────────────────────────────────────
+    //
+    // The KYC SDK needs a short-lived JWT minted by the backend. We expose
+    // the endpoint as a constant so the page can also be self-served via a
+    // CDN without touching the markup. Override at runtime by setting
+    // `window.BEYOUND_KYC_TOKEN_ENDPOINT` BEFORE this script runs.
+    //
+    // The endpoint must return JSON of the shape:
+    //   { "token": "<jwt>", "transactionId": "<id>" }
+    // or, for the older 4-arg HyperKycConfig shape:
+    //   { "accessToken": "...", "workflowId": "...", "transactionId": "..." }
+    //
+    // The backend route is responsible for calling HyperVerge's token mint
+    // API with the workspace's accessKey + appId. Do NOT expose those
+    // credentials in this page.
+
+    const CONFIG = {
+      tokenEndpoint:
+        window.BEYOUND_KYC_TOKEN_ENDPOINT ||
+        "https://api.beyound.in/kyc/token",
+      // appId + workflowId are public-safe identifiers. The page uses
+      // them to call HyperKYCModule.prefetch() on first paint, which
+      // warm-loads the workflow config + assets so the actual launch
+      // doesn't sit on a "loading…" spinner. Override at runtime by
+      // setting `window.BEYOUND_KYC_APP_ID` / `window.BEYOUND_KYC_WORKFLOW_ID`.
+      appId: window.BEYOUND_KYC_APP_ID || "",
+      workflowId: window.BEYOUND_KYC_WORKFLOW_ID || "",
+      brandColor: "#059669",
+      // Set to true to show HyperVerge's landing/intro page before the
+      // first capture step. We keep it false because this page IS the
+      // landing page.
+      showHyperVergeLanding: false,
+      defaultLanguage: "en",
+      supportDarkMode: false,
+      // Inputs the workflow's `inputsRequired` array expects. Leave as
+      // null / {} when the workflow has no required inputs. Backend can
+      // also return these on the token endpoint under `inputs`.
+      inputs: null,
+    };
+
+    // HyperVerge error code -> human-readable bucket. Mirrors the
+    // "Summary" column in the Mar-2026 integration guide.
+    const ERROR_CODE_BUCKETS = {
+      101: "SDK config error",
+      102: "Workflow input error",
+      103: "Network or user-cancel",
+      104: "Workflow error",
+      106: "Camera permission denied",
+      107: "Camera / recorder hardware error",
+      111: "Upstream API error",
+      112: "Signature validation failed",
+      126: "Privacy consent denied",
+      151: "Session conflict",
+    };
+
+    // ────────────────────────────────────────────────────────────────────────
+    // UI helpers
+    // ────────────────────────────────────────────────────────────────────────
+
+    const launchBtn = document.getElementById("launch");
+    const statusEl = document.getElementById("status");
+    const btnLabel = launchBtn.querySelector(".label");
+
+    const STATUS_VARIANTS = {
+      info: "",
+      success: "success",
+      warning: "warning",
+      danger: "danger",
+    };
+
+    function setStatus(variant, title, detail) {
+      statusEl.className = "status show " + (STATUS_VARIANTS[variant] || "");
+      statusEl.innerHTML =
+        '<div class="title">' + escapeHtml(title) + '</div>' +
+        (detail ? '<div class="detail">' + escapeHtml(detail) + '</div>' : '');
+    }
+
+    function clearStatus() {
+      statusEl.className = "status";
+      statusEl.innerHTML = "";
+    }
+
+    function setLoading(loading) {
+      launchBtn.disabled = loading;
+      btnLabel.textContent = loading
+        ? "Starting verification…"
+        : "Start KYC verification";
+    }
+
+    function escapeHtml(s) {
+      return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      }[c]));
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // Token fetch
+    // ────────────────────────────────────────────────────────────────────────
+
+    async function fetchKycToken() {
+      const res = await fetch(CONFIG.tokenEndpoint, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", accept: "application/json" },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) {
+        let detail = "";
+        try {
+          const body = await res.json();
+          detail =
+            body && (body.error?.message || body.detail || body.message);
+        } catch (_) {}
+        throw new Error(
+          (detail || "Token endpoint returned " + res.status) +
+            " (" +
+            CONFIG.tokenEndpoint +
+            ")"
+        );
+      }
+      const body = await res.json();
+      // Support both response shapes documented by HyperVerge:
+      //   1. New JWT-only shape: { token, transactionId? }
+      //   2. Legacy 4-arg shape: { accessToken, workflowId, transactionId }
+      const token = body.token || body.accessToken;
+      if (!token) {
+        throw new Error(
+          "Token endpoint returned no `token` / `accessToken` field"
+        );
+      }
+      return {
+        token,
+        workflowId: body.workflowId || null,
+        transactionId: body.transactionId || null,
+        inputs: body.inputs || null,
+      };
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // SDK launch
+    // ────────────────────────────────────────────────────────────────────────
+
+    function ensureSdkAvailable() {
+      if (typeof HyperKycConfig === "undefined" || typeof HyperKYCModule === "undefined") {
+        throw new Error(
+          "HyperVerge SDK failed to load — check network, ad-blockers, and CSP."
+        );
+      }
+    }
+
+    function tryPrefetch() {
+      // Per the integration guide: "Call prefetch() WELL BEFORE launch(),
+      // not right before it. Calling it immediately before launch() can
+      // leave the workflow stuck in a loading state." So fire it on
+      // page boot when we have both ids configured.
+      if (!CONFIG.appId || !CONFIG.workflowId) return;
+      if (typeof HyperKYCModule === "undefined") return;
+      if (typeof HyperKYCModule.prefetch !== "function") return;
+      try {
+        HyperKYCModule.prefetch(CONFIG.appId, CONFIG.workflowId);
+        if (window.console) {
+          console.log(
+            "[hv-kyc] prefetch fired",
+            { appId: CONFIG.appId, workflowId: CONFIG.workflowId }
+          );
+        }
+      } catch (e) {
+        console.warn("[hv-kyc] prefetch failed", e);
+      }
+    }
+
+    function buildKycConfig({ token, workflowId, transactionId, inputs }) {
+      // The published HyperVerge sample uses the newer 2-arg constructor
+      // (JWT + showLandingPage). The Mar-2026 docs also show a 4-arg
+      // shape (accessToken, workflowId, transactionId, showLandingPage).
+      // We accept both: when the backend gives us workflowId +
+      // transactionId, we pass them positionally; otherwise we lean on
+      // the JWT-encoded variant.
+      let cfg;
+      if (workflowId && transactionId) {
+        cfg = new HyperKycConfig(
+          token,
+          workflowId,
+          transactionId,
+          CONFIG.showHyperVergeLanding
+        );
+      } else {
+        cfg = new HyperKycConfig(token, CONFIG.showHyperVergeLanding);
+      }
+      if (typeof cfg.supportDarkMode === "function") {
+        cfg.supportDarkMode(!!CONFIG.supportDarkMode);
+      }
+      if (typeof cfg.setDefaultLangCode === "function") {
+        cfg.setDefaultLangCode(CONFIG.defaultLanguage);
+      }
+      if (typeof cfg.setInitialLoaderColor === "function") {
+        cfg.setInitialLoaderColor(CONFIG.brandColor);
+      }
+      // Location is opt-in. Most KYC workflows do not require it and
+      // requesting unnecessarily is a friction point we avoid.
+      if (typeof cfg.setUseLocation === "function") {
+        cfg.setUseLocation(false);
+      }
+      // Some workflows declare an `inputsRequired` array. The SDK
+      // throws error 102 if any required key is missing, so forward
+      // whatever the backend handed us (and the static CONFIG.inputs
+      // fallback) before launch.
+      const mergedInputs = Object.assign({}, CONFIG.inputs || {}, inputs || {});
+      if (Object.keys(mergedInputs).length && typeof cfg.setInputs === "function") {
+        cfg.setInputs(mergedInputs);
+      }
+      return cfg;
+    }
+
+    function describeResult(result) {
+      // Result fields per HyperVerge docs: { status, code, message, ... }
+      const code = result && result.code;
+      const bucket = ERROR_CODE_BUCKETS[code];
+      const codeSuffix = bucket ? " (" + bucket + ")" : "";
+      switch (result && result.status) {
+        case "auto_approved":
+          return {
+            variant: "success",
+            title: "Verification complete",
+            detail: "Your KYC has been auto-approved.",
+          };
+        case "auto_declined":
+          return {
+            variant: "danger",
+            title: "Verification declined",
+            detail:
+              (result.message ||
+                "Your documents could not be verified. Please contact support.") +
+              codeSuffix,
+          };
+        case "needs_review":
+          return {
+            variant: "warning",
+            title: "Submitted for review",
+            detail:
+              "Your documents are queued for manual review. We'll email you when it's done.",
+          };
+        case "user_cancelled":
+          return {
+            variant: "warning",
+            title: "Verification cancelled",
+            detail: "You closed the flow before completion. You can restart any time.",
+          };
+        case "error":
+          return {
+            variant: "danger",
+            title: "Verification couldn't start",
+            detail:
+              (result.message ||
+                "A technical error occurred. Please retry in a moment.") +
+              codeSuffix,
+          };
+        default:
+          return {
+            variant: "warning",
+            title: "Verification ended",
+            detail:
+              "status=" +
+              (result && result.status) +
+              " code=" +
+              (result && result.code) +
+              " message=" +
+              (result && result.message),
+          };
+      }
+    }
+
+    // Fire-and-forget prefetch on page boot so the SDK has the workflow
+    // assets warm by the time the user clicks Start. No-op if appId or
+    // workflowId aren't configured (e.g. backend-only workflows).
+    tryPrefetch();
+
+    launchBtn.addEventListener("click", async () => {
+      clearStatus();
+      setLoading(true);
+      try {
+        ensureSdkAvailable();
+        const tokenPayload = await fetchKycToken();
+        const cfg = buildKycConfig(tokenPayload);
+        const result = await HyperKYCModule.launch(cfg, (cbResult) => {
+          // The launch promise also resolves with the same payload, so
+          // the callback is here mainly for telemetry / logs. Keep it
+          // light — actual decisioning must come from the webhook on
+          // the backend, not from this client.
+          if (window.console && window.console.log) {
+            console.log(
+              "[hv-kyc] callback",
+              {
+                status: cbResult && cbResult.status,
+                code: cbResult && cbResult.code,
+                message: cbResult && cbResult.message,
+              }
+            );
+          }
+        });
+        const summary = describeResult(result);
+        setStatus(summary.variant, summary.title, summary.detail);
+      } catch (err) {
+        console.error("[hv-kyc] launch failed", err);
+        setStatus(
+          "danger",
+          "Could not start verification",
+          (err && err.message) || String(err)
+        );
+      } finally {
+        setLoading(false);
+      }
+    });
+  </script>
+</body>
+</html>
