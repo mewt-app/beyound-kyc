@@ -340,7 +340,7 @@
     const CONFIG = {
       tokenEndpoint:
         window.BEYOUND_KYC_TOKEN_ENDPOINT ||
-        "https://api.beyound.in/kyc/token",
+        "https://api.spaid.in/backend/v2/kyc/token",
       // appId + workflowId are public-safe identifiers. The page uses
       // them to call HyperKYCModule.prefetch() on first paint, which
       // warm-loads the workflow config + assets so the actual launch
@@ -424,11 +424,33 @@
     // Token fetch
     // ────────────────────────────────────────────────────────────────────────
 
+    // Session forwarded by the upstream app (wallet / bills) when it
+    // links to KYC. Two delivery methods supported:
+    //   1. Query params: kyc.beyound.in/?sid=...&mid=...  (preferred —
+    //      no cross-subdomain cookie plumbing required).
+    //   2. Cookies on `.beyound.in`: if wallet/bills set sessionId +
+    //      merchantId with Domain=.beyound.in, `credentials: include`
+    //      forwards them and the backend reads them as usual.
+    function readSessionFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      return {
+        sessionId: params.get("sid") || params.get("session-id") || params.get("sessionId") || "",
+        merchantId: params.get("mid") || params.get("merchant-id") || params.get("merchantId") || "",
+      };
+    }
+
     async function fetchKycToken() {
+      const { sessionId, merchantId } = readSessionFromUrl();
+      const headers = {
+        "Content-Type": "application/json",
+        accept: "application/json",
+      };
+      if (sessionId) headers["session-id"] = sessionId;
+      if (merchantId) headers["merchant-id"] = merchantId;
       const res = await fetch(CONFIG.tokenEndpoint, {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json", accept: "application/json" },
+        headers,
         body: JSON.stringify({}),
       });
       if (!res.ok) {
