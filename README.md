@@ -27,14 +27,18 @@ Static landing for KYC verification. Served at https://kyc.beyound.in
 GitHub Pages: serve from `main` branch root. The `CNAME` file pins
 `kyc.beyound.in`.
 
-Required DNS:
+Required DNS (verified against `mewt-app/beyound`):
 
 ```
-kyc.beyound.in.   CNAME   randomittin.github.io.
+kyc.beyound.in.   CNAME   mewt-app.github.io.
 ```
 
-(Or whichever GitHub Pages target the org account resolves to —
-check via `dig <repo>.github.io`.)
+GitHub Pages issues the Let's Encrypt cert automatically once the CNAME
+resolves. After that the API lets you flip `https_enforced: true`:
+
+```
+gh api -X PUT repos/mewt-app/beyound-kyc/pages -f https_enforced=true
+```
 
 ## Backend integration TODO
 
