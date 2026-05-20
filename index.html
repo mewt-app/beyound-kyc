@@ -338,9 +338,13 @@
     // credentials in this page.
 
     const CONFIG = {
+      // Zokudo wallet's KYC request endpoint. Backend wraps the
+      // HyperVerge token mint and stamps the workflow + transaction
+      // IDs into the JWT for us. Override at runtime with
+      // window.BEYOUND_KYC_TOKEN_ENDPOINT (e.g. to point at dev-api).
       tokenEndpoint:
         window.BEYOUND_KYC_TOKEN_ENDPOINT ||
-        "https://api.spaid.in/backend/v2/kyc/token",
+        "https://api.spaid.in/backend/v2/zokudo/wallet/generate-kyc-request",
       // appId + workflowId are public-safe identifiers. The page uses
       // them to call HyperKYCModule.prefetch() on first paint, which
       // warm-loads the workflow config + assets so the actual launch
@@ -439,8 +443,18 @@
       };
     }
 
+    function stripBearerPrefix(raw) {
+      if (!raw) return raw;
+      return String(raw).replace(/^bearer\s+/i, "");
+    }
+
     async function fetchKycToken() {
       const { sessionId, merchantId } = readSessionFromUrl();
+      if (!merchantId) {
+        throw new Error(
+          "Missing merchant context. Open this page from the beyound wallet so a session can be forwarded."
+        );
+      }
       const headers = {
         "Content-Type": "application/json",
         accept: "application/json",
@@ -451,7 +465,7 @@
         method: "POST",
         credentials: "include",
         headers,
-        body: JSON.stringify({}),
+        body: JSON.stringify({ merchant_id: merchantId }),
       });
       if (!res.ok) {
         let detail = "";
@@ -468,19 +482,24 @@
         );
       }
       const body = await res.json();
-      // Support both response shapes documented by HyperVerge:
-      //   1. New JWT-only shape: { token, transactionId? }
-      //   2. Legacy 4-arg shape: { accessToken, workflowId, transactionId }
-      const token = body.token || body.accessToken;
+      // Zokudo wrapper response shape:
+      //   { success, message, access_token, workflow_id, transaction_id, kyc_record_id }
+      // The access_token comes prefixed with "Bearer " — strip it before
+      // handing to HyperKycConfig. Also accept the older camelCase /
+      // bare-token shapes for compatibility with any legacy backend.
+      const rawToken =
+        body.access_token || body.accessToken || body.token;
+      const token = stripBearerPrefix(rawToken);
       if (!token) {
         throw new Error(
-          "Token endpoint returned no `token` / `accessToken` field"
+          "Token endpoint returned no `access_token` / `token` field"
         );
       }
       return {
         token,
-        workflowId: body.workflowId || null,
-        transactionId: body.transactionId || null,
+        workflowId: body.workflow_id || body.workflowId || null,
+        transactionId: body.transaction_id || body.transactionId || null,
+        kycRecordId: body.kyc_record_id || null,
         inputs: body.inputs || null,
       };
     }
