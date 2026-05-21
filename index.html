@@ -342,9 +342,13 @@
       // HyperVerge token mint and stamps the workflow + transaction
       // IDs into the JWT for us. Override at runtime with
       // window.BEYOUND_KYC_TOKEN_ENDPOINT (e.g. to point at dev-api).
+      // TEMP(UAT): pointing at dev-api.spaid.in while the Zokudo
+      // wallet routes are still dev-only. Flip back to api.spaid.in
+      // once the prod backend deploy carries /zokudo/wallet/* — this
+      // is the only line that needs to change.
       tokenEndpoint:
         window.BEYOUND_KYC_TOKEN_ENDPOINT ||
-        "https://api.spaid.in/backend/v2/zokudo/wallet/generate-kyc-request",
+        "https://dev-api.spaid.in/backend/v2/zokudo/wallet/generate-kyc-request",
       // appId + workflowId are public-safe identifiers. The page uses
       // them to call HyperKYCModule.prefetch() on first paint, which
       // warm-loads the workflow config + assets so the actual launch
