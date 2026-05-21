@@ -663,10 +663,12 @@
       }
     }
 
-    // Fire-and-forget prefetch on page boot so the SDK has the workflow
-    // assets warm by the time the user clicks Start. No-op if appId or
-    // workflowId aren't configured (e.g. backend-only workflows).
-    tryPrefetch();
+    // NOTE: prefetch is intentionally disabled. v8.11.5 of the SDK
+    // appears to drop a half-populated workflow config into cache
+    // when called this early — the subsequent launch then fetches
+    // `kyc.beyound.in/undefined` (404) and stalls on the loader. The
+    // happy path is to let launch() resolve the workflow itself.
+    // tryPrefetch();
 
     launchBtn.addEventListener("click", async () => {
       clearStatus();
