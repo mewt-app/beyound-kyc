@@ -686,12 +686,32 @@
           resolveResult(cbResult);
         };
         const launchReturn = HyperKYCModule.launch(cfg, handler);
+        // Watchdog: if the SDK doesn't mount UI within ~6s, surface a
+        // clear "stuck before launch" error. The typical cause is an
+        // HV-side domain whitelist miss (cceyez / zokudo_kyc_revamp →
+        // Allowed Domains in the HV One dashboard).
+        const watchdog = new Promise((_, reject) => {
+          setTimeout(() => {
+            const sdkRoot =
+              document.querySelector(
+                "iframe[src*='hyperverge'], iframe[src*='hv-web-sdk'], #hyperverge-sdk, [data-hv-sdk]"
+              );
+            if (!sdkRoot) {
+              reject(
+                new Error(
+                  "SDK didn't open its UI within 6s — Hyperverge likely rejected the domain. Whitelist https://kyc.beyound.in in the cceyez app's Allowed Domains."
+                )
+              );
+            }
+          }, 6000);
+        });
         // Belt-and-braces: if the SDK happens to resolve its own
         // promise with the result (newer builds do), use whichever
         // resolves first.
         const result = await Promise.race([
           resultPromise,
           Promise.resolve(launchReturn).then((r) => r ?? resultPromise),
+          watchdog,
         ]);
         const summary = describeResult(result);
         setStatus(summary.variant, summary.title, summary.detail);
