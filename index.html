@@ -570,15 +570,26 @@
     }
 
     function buildKycConfig({ token, workflowId, transactionId, inputs }) {
-      // The backend mints a JWT that already carries appId, workflowId
-      // and transactionId in its payload, so the 2-arg HyperKycConfig
-      // (token + showLandingPage) is the correct shape per the Mar-2026
-      // integration guide. Passing them positionally as well leaves the
-      // SDK in a confused state where the launch resolves silently
-      // with undefined.
-      const cfg = new HyperKycConfig(token, CONFIG.showHyperVergeLanding);
-      // workflowId / transactionId are kept on the closure for
-      // diagnostic logging only — see launch handler below.
+      // v8.11.5 takes both shapes per the Mar-2026 integration guide:
+      //   Option 1: new HyperKycConfig(token, workflowId, transactionId, showLanding)
+      //   Option 2: new HyperKycConfig(token, showLanding)  // token's payload has the IDs
+      // We tried Option 2 and got `fetch(undefined) -> /undefined 404`
+      // on launch with v8.11.5, which strongly suggests the SDK
+      // doesn't read the JWT payload back into workflowId/transactionId
+      // and tries to resolve the workflow config from undefined state.
+      // Switch to Option 1 whenever the token endpoint hands us both
+      // ids; fall back to Option 2 only if either is missing.
+      let cfg;
+      if (workflowId && transactionId) {
+        cfg = new HyperKycConfig(
+          token,
+          workflowId,
+          transactionId,
+          CONFIG.showHyperVergeLanding
+        );
+      } else {
+        cfg = new HyperKycConfig(token, CONFIG.showHyperVergeLanding);
+      }
       cfg.__beyoundTrace = { workflowId, transactionId };
       if (typeof cfg.supportDarkMode === "function") {
         cfg.supportDarkMode(!!CONFIG.supportDarkMode);
