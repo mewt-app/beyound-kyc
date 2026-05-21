@@ -568,23 +568,16 @@
     }
 
     function buildKycConfig({ token, workflowId, transactionId, inputs }) {
-      // The published HyperVerge sample uses the newer 2-arg constructor
-      // (JWT + showLandingPage). The Mar-2026 docs also show a 4-arg
-      // shape (accessToken, workflowId, transactionId, showLandingPage).
-      // We accept both: when the backend gives us workflowId +
-      // transactionId, we pass them positionally; otherwise we lean on
-      // the JWT-encoded variant.
-      let cfg;
-      if (workflowId && transactionId) {
-        cfg = new HyperKycConfig(
-          token,
-          workflowId,
-          transactionId,
-          CONFIG.showHyperVergeLanding
-        );
-      } else {
-        cfg = new HyperKycConfig(token, CONFIG.showHyperVergeLanding);
-      }
+      // The backend mints a JWT that already carries appId, workflowId
+      // and transactionId in its payload, so the 2-arg HyperKycConfig
+      // (token + showLandingPage) is the correct shape per the Mar-2026
+      // integration guide. Passing them positionally as well leaves the
+      // SDK in a confused state where the launch resolves silently
+      // with undefined.
+      const cfg = new HyperKycConfig(token, CONFIG.showHyperVergeLanding);
+      // workflowId / transactionId are kept on the closure for
+      // diagnostic logging only — see launch handler below.
+      cfg.__beyoundTrace = { workflowId, transactionId };
       if (typeof cfg.supportDarkMode === "function") {
         cfg.supportDarkMode(!!CONFIG.supportDarkMode);
       }
@@ -680,22 +673,26 @@
         ensureSdkAvailable();
         const tokenPayload = await fetchKycToken();
         const cfg = buildKycConfig(tokenPayload);
-        const result = await HyperKYCModule.launch(cfg, (cbResult) => {
-          // The launch promise also resolves with the same payload, so
-          // the callback is here mainly for telemetry / logs. Keep it
-          // light — actual decisioning must come from the webhook on
-          // the backend, not from this client.
-          if (window.console && window.console.log) {
-            console.log(
-              "[hv-kyc] callback",
-              {
-                status: cbResult && cbResult.status,
-                code: cbResult && cbResult.code,
-                message: cbResult && cbResult.message,
-              }
-            );
-          }
+        // HyperKYCModule.launch invokes the handler with the result —
+        // its own promise can resolve with undefined depending on the
+        // SDK build. So we capture the result from the callback and
+        // wait on a promise that the handler resolves.
+        let resolveResult;
+        const resultPromise = new Promise((r) => {
+          resolveResult = r;
         });
+        const handler = (cbResult) => {
+          console.log("[hv-kyc] callback", cbResult);
+          resolveResult(cbResult);
+        };
+        const launchReturn = HyperKYCModule.launch(cfg, handler);
+        // Belt-and-braces: if the SDK happens to resolve its own
+        // promise with the result (newer builds do), use whichever
+        // resolves first.
+        const result = await Promise.race([
+          resultPromise,
+          Promise.resolve(launchReturn).then((r) => r ?? resultPromise),
+        ]);
         const summary = describeResult(result);
         setStatus(summary.variant, summary.title, summary.detail);
       } catch (err) {
