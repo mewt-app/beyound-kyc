@@ -452,7 +452,33 @@
       return String(raw).replace(/^bearer\s+/i, "");
     }
 
+    function readPrebakedTokenFromUrl() {
+      // UAT escape hatch: if the URL carries ?token=<jwt>&workflow_id=...
+      // &transaction_id=... (e.g. from a manual mint by the backend
+      // operator), use those directly and skip the CORS-bound backend
+      // call. Used to demo / hand-test the SDK while the dev backend's
+      // CORS allowlist for kyc.beyound.in is still being added.
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get("token") || params.get("access_token");
+      if (!token) return null;
+      return {
+        token: stripBearerPrefix(token),
+        workflowId:
+          params.get("workflow_id") ||
+          params.get("workflowId") ||
+          null,
+        transactionId:
+          params.get("transaction_id") ||
+          params.get("transactionId") ||
+          null,
+        kycRecordId: params.get("kyc_record_id") || null,
+        inputs: null,
+      };
+    }
+
     async function fetchKycToken() {
+      const prebaked = readPrebakedTokenFromUrl();
+      if (prebaked) return prebaked;
       const { sessionId, merchantId } = readSessionFromUrl();
       if (!merchantId) {
         throw new Error(
