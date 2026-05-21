@@ -17,11 +17,13 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://hv-web-sdk-cdn.hyperverge.co" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <!-- HyperVerge Web SDK. Pinned to @latest so the CDN serves the
-       newest stable bundle without us re-deploying on every patch. If
-       a specific build needs to be pinned, replace `latest` with a
-       SemVer from https://hv-web-sdk-cdn.hyperverge.co/ -->
-  <script src="https://hv-web-sdk-cdn.hyperverge.co/hyperverge-web-sdk@latest/src/sdk.min.js"></script>
+  <!-- HyperVerge Web SDK. The `@latest` CDN alias resolves to v4.1.7
+       (ancient — predates the Zokudo KYC workflow's module set) and
+       crashes with `c.forEach is not a function` because it can't
+       parse the modern workflow config shape. Pin to v8.11.5 which
+       the integration guide explicitly references as the floor for
+       feature support. -->
+  <script src="https://hv-web-sdk-cdn.hyperverge.co/hyperverge-web-sdk@8.11.5/src/sdk.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
