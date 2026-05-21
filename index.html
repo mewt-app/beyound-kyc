@@ -715,18 +715,20 @@
         // Allowed Domains in the HV One dashboard).
         const watchdog = new Promise((_, reject) => {
           setTimeout(() => {
-            const sdkRoot =
-              document.querySelector(
-                "iframe[src*='hyperverge'], iframe[src*='hv-web-sdk'], #hyperverge-sdk, [data-hv-sdk]"
-              );
+            // v8.11.5 mounts the SDK as a top-level <div id="HV_*"> on
+            // body (not an iframe), so check for any of those plus the
+            // legacy iframe selectors. Only reject if none have shown.
+            const sdkRoot = document.querySelector(
+              "iframe[src*='hyperverge'], iframe[src*='hv-web-sdk'], [id^='HV_'], [class*='hv-modal']"
+            );
             if (!sdkRoot) {
               reject(
                 new Error(
-                  "SDK didn't open its UI within 6s — Hyperverge likely rejected the domain. Whitelist https://kyc.beyound.in in the cceyez app's Allowed Domains."
+                  "SDK didn't open its UI within 15s — likely an HV side reject. Check console for errors."
                 )
               );
             }
-          }, 6000);
+          }, 15000);
         });
         // Belt-and-braces: if the SDK happens to resolve its own
         // promise with the result (newer builds do), use whichever
