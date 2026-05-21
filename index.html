@@ -450,8 +450,16 @@
     }
 
     function stripBearerPrefix(raw) {
-      if (!raw) return raw;
-      return String(raw).replace(/^bearer\s+/i, "");
+      // HV /v1/startTransaction returns 401 "Invalid token" when the
+      // Authorization header lacks the "Bearer " prefix and 200 when
+      // it has it — confirmed by direct curl against the same JWT.
+      // The SDK passes the token through verbatim into the header, so
+      // we need to KEEP the prefix the backend already added.
+      //
+      // Older versions of this helper stripped the prefix because the
+      // sample code feeds bare JWTs to HyperKycConfig; that path is
+      // wrong for v8.11.5 + Zokudo's mint. Pass through unchanged.
+      return raw;
     }
 
     function readPrebakedTokenFromUrl() {
