@@ -17,13 +17,11 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://hv-web-sdk-cdn.hyperverge.co" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <!-- HyperVerge Web SDK. The `@latest` CDN alias resolves to v4.1.7
-       (ancient — predates the Zokudo KYC workflow's module set) and
-       crashes with `c.forEach is not a function` because it can't
-       parse the modern workflow config shape. Pin to v8.11.5 which
-       the integration guide explicitly references as the floor for
-       feature support. -->
-  <script src="https://hv-web-sdk-cdn.hyperverge.co/hyperverge-web-sdk@8.11.5/src/sdk.min.js"></script>
+  <!-- HyperVerge Web SDK. Pinned to v10.10.2 to match the version the
+       Zokudo + CSB reference integration is verified against. @latest
+       resolves to a much older build that can't parse the modern
+       workflow config. -->
+  <script src="https://hv-web-sdk-cdn.hyperverge.co/hyperverge-web-sdk@10.10.2/src/sdk.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -356,13 +354,18 @@
       // warm-loads the workflow config + assets so the actual launch
       // doesn't sit on a "loading…" spinner. Override at runtime by
       // setting `window.BEYOUND_KYC_APP_ID` / `window.BEYOUND_KYC_WORKFLOW_ID`.
-      appId: window.BEYOUND_KYC_APP_ID || "rc4gsl",
+      // appId is decoded from the JWT payload at launch time (the
+      // backend's response also carries `app_id` directly in newer
+      // builds). These hardcoded fallbacks are only used by the page-
+      // boot prefetch when no JWT is in scope yet.
+      appId: window.BEYOUND_KYC_APP_ID || "cceyez",
       workflowId: window.BEYOUND_KYC_WORKFLOW_ID || "zokudo_kyc_revamp",
       brandColor: "#059669",
-      // Set to true to show HyperVerge's landing/intro page before the
-      // first capture step. We keep it false because this page IS the
-      // landing page.
-      showHyperVergeLanding: false,
+      // Show HyperVerge's intro screen before capture. The CSB
+      // reference integration runs with this on; keeping it lets the
+      // SDK surface permission prompts and instructions in its own
+      // flow rather than racing the user out the gate.
+      showHyperVergeLanding: true,
       defaultLanguage: "en",
       supportDarkMode: false,
       // Inputs the workflow's `inputsRequired` array expects. Leave as
@@ -450,16 +453,31 @@
     }
 
     function stripBearerPrefix(raw) {
-      // HV /v1/startTransaction returns 401 "Invalid token" when the
-      // Authorization header lacks the "Bearer " prefix and 200 when
-      // it has it — confirmed by direct curl against the same JWT.
-      // The SDK passes the token through verbatim into the header, so
-      // we need to KEEP the prefix the backend already added.
-      //
-      // Older versions of this helper stripped the prefix because the
-      // sample code feeds bare JWTs to HyperKycConfig; that path is
-      // wrong for v8.11.5 + Zokudo's mint. Pass through unchanged.
-      return raw;
+      if (!raw) return raw;
+      return String(raw).replace(/^bearer\s+/i, "");
+    }
+
+    function decodeJwtPayload(jwt) {
+      // Best-effort base64url decode of the middle segment. Returns
+      // null on any failure so callers can fall back to defaults.
+      try {
+        var bare = String(jwt || "").replace(/^bearer\s+/i, "");
+        var parts = bare.split(".");
+        if (parts.length < 2) return null;
+        var b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+        while (b64.length % 4) b64 += "=";
+        var json = decodeURIComponent(
+          atob(b64)
+            .split("")
+            .map(function (c) {
+              return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
+            })
+            .join("")
+        );
+        return JSON.parse(json);
+      } catch (_e) {
+        return null;
+      }
     }
 
     function readPrebakedTokenFromUrl() {
@@ -578,26 +596,19 @@
     }
 
     function buildKycConfig({ token, workflowId, transactionId, inputs }) {
-      // v8.11.5 takes both shapes per the Mar-2026 integration guide:
-      //   Option 1: new HyperKycConfig(token, workflowId, transactionId, showLanding)
-      //   Option 2: new HyperKycConfig(token, showLanding)  // token's payload has the IDs
-      // We tried Option 2 and got `fetch(undefined) -> /undefined 404`
-      // on launch with v8.11.5, which strongly suggests the SDK
-      // doesn't read the JWT payload back into workflowId/transactionId
-      // and tries to resolve the workflow config from undefined state.
-      // Switch to Option 1 whenever the token endpoint hands us both
-      // ids; fall back to Option 2 only if either is missing.
-      let cfg;
-      if (workflowId && transactionId) {
-        cfg = new HyperKycConfig(
-          token,
-          workflowId,
-          transactionId,
-          CONFIG.showHyperVergeLanding
-        );
-      } else {
-        cfg = new HyperKycConfig(token, CONFIG.showHyperVergeLanding);
-      }
+      // Mirror the verified Zokudo + CSB reference integration:
+      //   1. Strip any "Bearer " prefix that the backend returned.
+      //   2. Re-prepend "Bearer " ourselves so the access token
+      //      handed to HyperKycConfig is always the same shape.
+      //   3. 4-arg positional: (accessToken, workflowId, transactionId,
+      //      showLandingPage = true).
+      var bare = stripBearerPrefix(token);
+      var cfg = new HyperKycConfig(
+        "Bearer " + bare,
+        workflowId,
+        transactionId,
+        CONFIG.showHyperVergeLanding
+      );
       cfg.__beyoundTrace = { workflowId, transactionId };
       if (typeof cfg.supportDarkMode === "function") {
         cfg.supportDarkMode(!!CONFIG.supportDarkMode);
@@ -682,12 +693,10 @@
       }
     }
 
-    // NOTE: prefetch is intentionally disabled. v8.11.5 of the SDK
-    // appears to drop a half-populated workflow config into cache
-    // when called this early — the subsequent launch then fetches
-    // `kyc.beyound.in/undefined` (404) and stalls on the loader. The
-    // happy path is to let launch() resolve the workflow itself.
-    // tryPrefetch();
+    // Prefetch is wired but intentionally NOT fired on page boot —
+    // the verified CSB reference integration kicks it off immediately
+    // before launch(), with the appId decoded from the JWT payload.
+    // See launchBtn click handler below.
 
     launchBtn.addEventListener("click", async () => {
       clearStatus();
@@ -695,6 +704,31 @@
       try {
         ensureSdkAvailable();
         const tokenPayload = await fetchKycToken();
+        // Prefetch right before launch using the appId decoded from the
+        // JWT payload (falls back to CONFIG.appId if the JWT didn't
+        // carry one). Mirrors the verified CSB sequence.
+        try {
+          var jwtPayload = decodeJwtPayload(tokenPayload.token) || {};
+          var prefetchAppId =
+            tokenPayload.appId || jwtPayload.appId || CONFIG.appId;
+          var prefetchWorkflowId =
+            tokenPayload.workflowId ||
+            jwtPayload.workflowId ||
+            CONFIG.workflowId;
+          if (
+            prefetchAppId &&
+            prefetchWorkflowId &&
+            typeof HyperKYCModule.prefetch === "function"
+          ) {
+            HyperKYCModule.prefetch(prefetchAppId, prefetchWorkflowId);
+            console.log("[hv-kyc] prefetch fired", {
+              appId: prefetchAppId,
+              workflowId: prefetchWorkflowId,
+            });
+          }
+        } catch (_pf) {
+          console.warn("[hv-kyc] prefetch failed", _pf);
+        }
         const cfg = buildKycConfig(tokenPayload);
         // HyperKYCModule.launch invokes the handler with the result —
         // its own promise can resolve with undefined depending on the
