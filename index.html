@@ -849,16 +849,49 @@
         scheduleRedirect(summary.variant, result);
       } catch (err) {
         console.error("[hv-kyc] launch failed", err);
-        setStatus(
-          "danger",
-          "Could not start verification",
-          (err && err.message) || String(err)
-        );
-        // Even on a launch-side failure (HV reject, network, watchdog),
-        // send the user back to the wallet so they can retry from the
-        // dashboard. Pass kyc_status=error so the wallet can choose to
-        // re-open the KYC sheet rather than mark KYC done.
-        scheduleRedirect("danger", { status: "error", code: (err && err.code) || "launch_failed" });
+        const msg = (err && err.message) || String(err);
+        // "Already FULL KYC" is not a failure — the user has already
+        // finished KYC on a previous run / via another channel. Zokudo
+        // refuses to mint a fresh HyperVerge token because the customer
+        // is already in the FULL_KYC state, so we never get into the
+        // SDK. Surface this as a success: tell the user they're done,
+        // then bounce back to the wallet with kyc_status=already_completed
+        // so it can refresh its local KYC flag without re-prompting.
+        //
+        // Matched patterns (case-insensitive):
+        //   - "Customer is already FULL KYC"      (Zokudo verbatim)
+        //   - "already <anything> KYC"             (defensive)
+        //   - "KYC already <verb>"                 (other phrasings)
+        //   - "FULL KYC"                           (last resort)
+        if (
+          /already\s+.*\bKYC\b/i.test(msg) ||
+          /\bKYC\b\s+already\b/i.test(msg) ||
+          /\bFULL\s+KYC\b/i.test(msg)
+        ) {
+          setStatus(
+            "success",
+            "KYC already complete",
+            "Your KYC is already verified — no action needed. Taking you back to your wallet."
+          );
+          scheduleRedirect("success", {
+            status: "already_completed",
+            code: "already_full_kyc",
+          });
+        } else {
+          setStatus(
+            "danger",
+            "Could not start verification",
+            msg
+          );
+          // Even on a launch-side failure (HV reject, network, watchdog),
+          // send the user back to the wallet so they can retry from the
+          // dashboard. Pass kyc_status=error so the wallet can choose to
+          // re-open the KYC sheet rather than mark KYC done.
+          scheduleRedirect("danger", {
+            status: "error",
+            code: (err && err.code) || "launch_failed",
+          });
+        }
       } finally {
         setLoading(false);
       }
