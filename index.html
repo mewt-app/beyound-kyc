@@ -438,12 +438,15 @@
     // ────────────────────────────────────────────────────────────────────────
 
     // Session forwarded by the upstream app (wallet / bills) when it
-    // links to KYC. Two delivery methods supported:
-    //   1. Query params: kyc.beyound.in/?sid=...&mid=...  (preferred —
-    //      no cross-subdomain cookie plumbing required).
-    //   2. Cookies on `.beyound.in`: if wallet/bills set sessionId +
-    //      merchantId with Domain=.beyound.in, `credentials: include`
-    //      forwards them and the backend reads them as usual.
+    // links to KYC via query params: kyc.beyound.in/?sid=...&mid=...
+    //
+    // We deliberately fetch with credentials:"omit" (see below) because
+    // the api.spaid.in CORS layer responds with Access-Control-Allow-
+    // Origin: *, and the browser refuses to forward cookies on a
+    // wildcard ACAO. All session state must therefore live on the URL
+    // / in headers / in the body — never in a Cookie. The previous
+    // cookie-based delivery path (Domain=.beyound.in) was dead in
+    // practice and has been removed.
     function readSessionFromUrl() {
       const params = new URLSearchParams(window.location.search);
       return {
@@ -519,9 +522,15 @@
       };
       if (sessionId) headers["session-id"] = sessionId;
       if (merchantId) headers["merchant-id"] = merchantId;
+      // credentials:"omit" — api.spaid.in returns Access-Control-Allow-
+      // Origin: * which is incompatible with credentials:"include"
+      // (browser blocks the preflight). Auth travels in the session-id
+      // / merchant-id headers and the body's merchant_id field, none of
+      // which need cookies. Do NOT switch this to "include" without
+      // first making the backend echo a specific Origin + ACAC: true.
       const res = await fetch(CONFIG.tokenEndpoint, {
         method: "POST",
-        credentials: "include",
+        credentials: "omit",
         headers,
         body: JSON.stringify({ merchant_id: merchantId }),
       });
