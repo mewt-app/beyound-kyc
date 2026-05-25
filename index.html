@@ -434,6 +434,64 @@
     }
 
     // ────────────────────────────────────────────────────────────────────────
+    // Post-KYC redirect — bounce the user back to the upstream app once the
+    // HyperVerge SDK has finished. The wallet caller can override the
+    // landing URL via ?return_url=... (or ?next=...); otherwise we send the
+    // user to wallet.beyound.in. Only https://*.beyound.in destinations are
+    // accepted to keep this from doubling as an open redirect.
+    // ────────────────────────────────────────────────────────────────────────
+    const DEFAULT_RETURN_URL = "https://wallet.beyound.in/";
+
+    function readReturnUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const raw = params.get("return_url") || params.get("next") || "";
+      if (!raw) return DEFAULT_RETURN_URL;
+      try {
+        const u = new URL(raw, window.location.origin);
+        const okProtocol = u.protocol === "https:";
+        const okHost =
+          u.hostname === "beyound.in" || u.hostname.endsWith(".beyound.in");
+        if (okProtocol && okHost) return u.toString();
+      } catch (_) {
+        // fall through to default
+      }
+      return DEFAULT_RETURN_URL;
+    }
+
+    function buildReturnUrlWithResult(result) {
+      const base = readReturnUrl();
+      let u;
+      try {
+        u = new URL(base);
+      } catch (_) {
+        return DEFAULT_RETURN_URL;
+      }
+      if (result && result.status) u.searchParams.set("kyc_status", result.status);
+      if (result && result.code) u.searchParams.set("kyc_code", result.code);
+      return u.toString();
+    }
+
+    // How long the status stays visible before we redirect, keyed by the
+    // describeResult().variant value. Successes redirect fast so the user
+    // doesn't feel stuck; failures linger so the message can be read.
+    const REDIRECT_DELAY_MS = {
+      success: 1500,
+      warning: 2500,
+      danger: 4000,
+      info: 2000,
+    };
+
+    function scheduleRedirect(variant, result) {
+      const target = buildReturnUrlWithResult(result);
+      const delay = REDIRECT_DELAY_MS[variant] != null
+        ? REDIRECT_DELAY_MS[variant]
+        : 2500;
+      window.setTimeout(() => {
+        window.location.replace(target);
+      }, delay);
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
     // Token fetch
     // ────────────────────────────────────────────────────────────────────────
 
@@ -783,6 +841,12 @@
         ]);
         const summary = describeResult(result);
         setStatus(summary.variant, summary.title, summary.detail);
+        // The HyperVerge SDK has handed control back — the user's run is
+        // over (whether approved, declined, queued for review, cancelled,
+        // or errored). Bounce them to the wallet so they aren't stranded
+        // on kyc.beyound.in. The wallet listens for ?kyc_status= on its
+        // landing route to surface a matching toast / refresh wallet state.
+        scheduleRedirect(summary.variant, result);
       } catch (err) {
         console.error("[hv-kyc] launch failed", err);
         setStatus(
@@ -790,6 +854,11 @@
           "Could not start verification",
           (err && err.message) || String(err)
         );
+        // Even on a launch-side failure (HV reject, network, watchdog),
+        // send the user back to the wallet so they can retry from the
+        // dashboard. Pass kyc_status=error so the wallet can choose to
+        // re-open the KYC sheet rather than mark KYC done.
+        scheduleRedirect("danger", { status: "error", code: (err && err.code) || "launch_failed" });
       } finally {
         setLoading(false);
       }
