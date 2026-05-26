@@ -481,7 +481,26 @@
       info: 2000,
     };
 
+    var isEmbedded = (function () {
+      try { return window.parent && window.parent !== window; }
+      catch (_) { return false; }
+    })();
+
     function scheduleRedirect(variant, result) {
+      // When embedded in the wallet's KYC webview (iframe), don't
+      // navigate — postMessage the SDK result to the parent so the
+      // wallet can close the webview + show success / KYC-failed. The
+      // parent only trusts messages from *.beyound.in.
+      if (isEmbedded) {
+        try {
+          window.parent.postMessage({
+            type: "beyound-kyc-result",
+            status: (result && result.status) || "error",
+            code: (result && result.code) || null,
+          }, "*");
+        } catch (_) {}
+        return;
+      }
       const target = buildReturnUrlWithResult(result);
       const delay = REDIRECT_DELAY_MS[variant] != null
         ? REDIRECT_DELAY_MS[variant]
