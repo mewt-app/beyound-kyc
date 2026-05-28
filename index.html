@@ -790,31 +790,11 @@
       try {
         ensureSdkAvailable();
         const tokenPayload = await fetchKycToken();
-        // Prefetch right before launch using the appId decoded from the
-        // JWT payload (falls back to CONFIG.appId if the JWT didn't
-        // carry one). Mirrors the verified CSB sequence.
-        try {
-          var jwtPayload = decodeJwtPayload(tokenPayload.token) || {};
-          var prefetchAppId =
-            tokenPayload.appId || jwtPayload.appId || CONFIG.appId;
-          var prefetchWorkflowId =
-            tokenPayload.workflowId ||
-            jwtPayload.workflowId ||
-            CONFIG.workflowId;
-          if (
-            prefetchAppId &&
-            prefetchWorkflowId &&
-            typeof HyperKYCModule.prefetch === "function"
-          ) {
-            HyperKYCModule.prefetch(prefetchAppId, prefetchWorkflowId);
-            console.log("[hv-kyc] prefetch fired", {
-              appId: prefetchAppId,
-              workflowId: prefetchWorkflowId,
-            });
-          }
-        } catch (_pf) {
-          console.warn("[hv-kyc] prefetch failed", _pf);
-        }
+        // NOTE: prefetch is no longer fired here — per the HyperVerge
+        // integration guide it must run WELL BEFORE launch, so it's now
+        // kicked off on page load (see boot prefetch below) using the
+        // configured appId/workflowId. Calling it right before launch
+        // can leave the workflow stuck loading.
         const cfg = buildKycConfig(tokenPayload);
         // HyperKYCModule.launch invokes the handler with the result —
         // its own promise can resolve with undefined depending on the
@@ -915,6 +895,25 @@
         setLoading(false);
       }
     });
+
+    // ────────────────────────────────────────────────────────────────────────
+    // Boot prefetch — warm the HyperVerge workflow assets as soon as the
+    // page + SDK are ready (NOT on launch click). The guide requires
+    // prefetch to run well before launch; firing it at boot using the
+    // configured appId/workflowId means the workflow is already warmed by
+    // the time the user taps "Start KYC". The SDK loads from a CDN <script>
+    // in <head>, so poll briefly until HyperKYCModule is defined.
+    (function bootPrefetch() {
+      var tries = 0;
+      (function attempt() {
+        if (typeof HyperKYCModule !== "undefined" &&
+            typeof HyperKYCModule.prefetch === "function") {
+          tryPrefetch();
+          return;
+        }
+        if (tries++ < 40) setTimeout(attempt, 150); // up to ~6s
+      })();
+    })();
   </script>
 </body>
 </html>
