@@ -547,6 +547,13 @@
         { merchantId },
         "Token endpoint"
       );
+      // Already-KYC'd merchants: the backend can't mint a fresh HyperVerge
+      // token (Zokudo rejects with "already FULL KYC"), so it returns 200 with
+      // kycStatus=completed instead of a token. Surface that as the
+      // already-complete success path rather than failing on a missing token.
+      if (body && (body.alreadyCompleted || body.kycStatus === "completed")) {
+        throw new Error("Customer is already FULL KYC");
+      }
       // Zokudo wrapper response shape:
       //   { success, message, access_token, workflow_id, transaction_id, kyc_record_id }
       // The access_token comes prefixed with "Bearer " — strip it before
