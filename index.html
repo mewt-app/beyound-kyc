@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://hv-web-sdk-cdn.hyperverge.co" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
   <!-- HyperVerge Web SDK. Pinned to v10.10.2 to match the version the
        Zokudo + CSB reference integration is verified against. @latest
        resolves to a much older build that can't parse the modern
@@ -32,12 +32,10 @@
     :root {
       --brand: #059669;
       --brand-dark: #047857;
-      --brand-soft: rgba(5, 150, 105, 0.08);
       --brand-glow: rgba(5, 150, 105, 0.18);
       --ink: #0F172A;
       --ink-soft: #1F2937;
       --muted: #475569;
-      --muted-soft: #94A3B8;
       --line: #E2E8F0;
       --bg: #ffffff;
       --bg-soft: #F8FAFC;
@@ -45,8 +43,6 @@
       --warning: #D97706;
       --danger: #DC2626;
     }
-
-    html { scroll-behavior: smooth; }
 
     body {
       font-family: 'Sora', system-ui, -apple-system, sans-serif;
@@ -56,153 +52,82 @@
       -webkit-font-smoothing: antialiased;
       min-height: 100vh;
       display: flex;
-      flex-direction: column;
-    }
-
-    .site-header {
-      padding: 18px clamp(20px, 5vw, 32px);
-      border-bottom: 1px solid var(--line);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      max-width: 1100px;
-      margin: 0 auto;
-      width: 100%;
-    }
-
-    .brand-lockup {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      text-decoration: none;
-      color: var(--ink);
-    }
-    .brand-mark {
-      width: 34px;
-      height: 34px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--brand), var(--brand-dark));
-      color: #fff;
-      font-weight: 700;
-      font-size: 18px;
-      display: inline-flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 4px 14px var(--brand-glow);
-    }
-    .brand-name {
-      font-weight: 800;
-      font-size: 20px;
-      letter-spacing: -0.6px;
-    }
-    .brand-suffix {
-      color: var(--muted);
-      font-weight: 500;
-      font-size: 14px;
-      letter-spacing: 1px;
-      margin-left: 8px;
-      text-transform: uppercase;
+      padding: 24px;
     }
 
+    /* Bare launcher: nothing but a centered loader + (on failure) a
+       status card and a retry button. The HyperVerge SDK overlay takes
+       over the whole screen once it mounts, so this page is just the
+       boot/loading/error shell behind it. */
     main {
-      flex: 1;
       width: 100%;
-      max-width: 720px;
-      margin: 0 auto;
-      padding: clamp(40px, 8vw, 80px) clamp(20px, 5vw, 32px) 56px;
+      max-width: 420px;
       display: flex;
       flex-direction: column;
-      gap: 32px;
-    }
-
-    .eyebrow {
-      display: inline-block;
-      padding: 6px 14px;
-      border-radius: 999px;
-      background: var(--brand-soft);
-      color: var(--brand);
-      font-size: 12px;
-      letter-spacing: 2.5px;
-      text-transform: uppercase;
-      font-weight: 600;
-      width: fit-content;
-    }
-
-    h1 {
-      font-size: clamp(32px, 5vw, 44px);
-      font-weight: 800;
-      letter-spacing: -1.2px;
-      line-height: 1.1;
-    }
-
-    .lede {
-      font-size: 17px;
-      color: var(--muted);
-      max-width: 560px;
-      line-height: 1.65;
-    }
-
-    .checklist {
-      list-style: none;
-      display: grid;
-      gap: 12px;
-      margin-top: 8px;
-    }
-    .checklist li {
-      display: grid;
-      grid-template-columns: 28px 1fr;
-      gap: 14px;
       align-items: center;
-      font-size: 15px;
-      color: var(--ink-soft);
-    }
-    .checklist li::before {
-      content: "";
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      background: var(--brand-soft);
-      background-image: linear-gradient(135deg, var(--brand-soft), var(--brand-soft));
-      position: relative;
-    }
-    .checklist li {
-      position: relative;
-    }
-    .checklist li::after {
-      content: "✓";
-      position: absolute;
-      left: 0;
-      width: 28px;
+      gap: 24px;
       text-align: center;
-      color: var(--brand);
-      font-weight: 700;
-      font-size: 14px;
     }
 
-    .actions {
+    .loader {
       display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
+      flex-direction: column;
       align-items: center;
-      margin-top: 8px;
+      gap: 18px;
     }
+    .loader[hidden] { display: none; }
+
+    .spinner-lg {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 3px solid rgba(5, 150, 105, 0.15);
+      border-top-color: var(--brand);
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .boot-text {
+      font-size: 15px;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .status {
+      width: 100%;
+      padding: 16px 20px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: var(--bg-soft);
+      font-size: 14px;
+      color: var(--ink-soft);
+      display: none;
+      text-align: left;
+    }
+    .status.show { display: block; }
+    .status.success { border-color: var(--success); background: rgba(5, 150, 105, 0.06); color: #065F46; }
+    .status.warning { border-color: var(--warning); background: rgba(217, 119, 6, 0.06); color: #92400E; }
+    .status.danger  { border-color: var(--danger);  background: rgba(220, 38, 38, 0.06);  color: #991B1B; }
+    .status .title { font-weight: 600; margin-bottom: 4px; }
+    .status .detail { font-size: 13px; color: inherit; opacity: 0.85; }
 
     .btn {
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      padding: 16px 28px;
+      padding: 15px 28px;
       border: none;
       border-radius: 14px;
       font-family: inherit;
       font-weight: 600;
       font-size: 16px;
       cursor: pointer;
-      text-decoration: none;
-      transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease, opacity 120ms ease;
+      transition: transform 120ms ease, box-shadow 120ms ease, opacity 120ms ease;
     }
+    .btn[hidden] { display: none; }
     .btn:disabled { opacity: 0.55; cursor: not-allowed; }
-
     .btn-primary {
       background: linear-gradient(135deg, var(--brand), var(--brand-dark));
       color: #fff;
@@ -212,111 +137,23 @@
       transform: translateY(-1px);
       box-shadow: 0 12px 28px var(--brand-glow);
     }
-    .btn-ghost {
-      background: transparent;
-      color: var(--muted);
-      border: 1px solid var(--line);
-    }
-    .btn-ghost:hover { color: var(--ink); border-color: var(--ink); }
-
-    .spinner {
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      border: 2px solid rgba(255, 255, 255, 0.4);
-      border-top-color: #fff;
-      animation: spin 0.8s linear infinite;
-      display: inline-block;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    .status {
-      padding: 16px 20px;
-      border-radius: 14px;
-      border: 1px solid var(--line);
-      background: var(--bg-soft);
-      font-size: 14px;
-      color: var(--ink-soft);
-      display: none;
-    }
-    .status.show { display: block; }
-    .status.success { border-color: var(--success); background: rgba(5, 150, 105, 0.06); color: #065F46; }
-    .status.warning { border-color: var(--warning); background: rgba(217, 119, 6, 0.06); color: #92400E; }
-    .status.danger  { border-color: var(--danger);  background: rgba(220, 38, 38, 0.06);  color: #991B1B; }
-    .status .title { font-weight: 600; margin-bottom: 4px; }
-    .status .detail { font-size: 13px; color: inherit; opacity: 0.85; }
-
-    .meta {
-      margin-top: 24px;
-      padding-top: 24px;
-      border-top: 1px solid var(--line);
-      font-size: 13px;
-      color: var(--muted);
-      display: grid;
-      gap: 8px;
-    }
-    .meta strong { color: var(--ink); font-weight: 600; }
-    .meta a { color: var(--brand); text-decoration: none; }
-    .meta a:hover { text-decoration: underline; }
-
-    .site-footer {
-      border-top: 1px solid var(--line);
-      background: var(--bg-soft);
-      padding: 24px clamp(20px, 5vw, 32px);
-      text-align: center;
-      font-size: 12px;
-      color: var(--muted);
-      line-height: 1.7;
-    }
-    .site-footer p { margin: 0; }
   </style>
 </head>
 <body>
-  <header class="site-header">
-    <a class="brand-lockup" href="https://beyound.in" aria-label="beyound home">
-      <span class="brand-mark">b</span>
-      <span class="brand-name">beyound</span>
-      <span class="brand-suffix">KYC</span>
-    </a>
-  </header>
-
   <main>
-    <div>
-      <span class="eyebrow">Identity verification</span>
-    </div>
-
-    <h1>Verify your identity to continue.</h1>
-
-    <p class="lede">
-      Beyound uses HyperVerge — an RBI-aligned KYC partner — to verify your
-      identity quickly and securely. The whole flow takes about 2 minutes and
-      runs entirely in your browser.
-    </p>
-
-    <ul class="checklist">
-      <li>Keep your Aadhaar or PAN handy</li>
-      <li>Allow camera access for the live selfie step</li>
-      <li>Have decent lighting and a steady hand</li>
-    </ul>
-
-    <div class="actions">
-      <button id="launch" class="btn btn-primary" type="button">
-        <span class="label">Start KYC verification</span>
-      </button>
-      <a class="btn btn-ghost" href="https://wallet.beyound.in" rel="noopener">Back to beyound</a>
+    <div class="loader" id="loader">
+      <span class="spinner-lg" aria-hidden="true"></span>
+      <p class="boot-text" id="bootText">Starting secure verification…</p>
     </div>
 
     <div id="status" class="status" role="status" aria-live="polite"></div>
 
-    <div class="meta">
-      <p><strong>Privacy.</strong> Your documents are processed by HyperVerge under their security and privacy controls. See the <a href="https://beyound.in/policies/privacy.html" rel="noopener">Beyound privacy policy</a> for what we retain on our end.</p>
-      <p><strong>Need help?</strong> Email <a href="mailto:support@beyound.in">support@beyound.in</a>.</p>
-    </div>
+    <!-- Retry only surfaces if the auto-launch fails (SDK didn't load,
+         token/network error, HV reject). Hidden on the happy path. -->
+    <button id="launch" class="btn btn-primary" type="button" hidden>
+      <span class="label">Start KYC verification</span>
+    </button>
   </main>
-
-  <footer class="site-footer">
-    <p>&copy; 2026 BeyoundExtra Tech Private Limited. All rights reserved.</p>
-  </footer>
 
   <script>
     // ────────────────────────────────────────────────────────────────────────
@@ -364,7 +201,8 @@
       // Show HyperVerge's intro screen before capture. The CSB
       // reference integration runs with this on; keeping it lets the
       // SDK surface permission prompts and instructions in its own
-      // flow rather than racing the user out the gate.
+      // flow rather than racing the user out the gate. It also supplies
+      // the user gesture for camera access on the auto-launch path.
       showHyperVergeLanding: true,
       defaultLanguage: "en",
       supportDarkMode: false,
@@ -395,6 +233,8 @@
 
     const launchBtn = document.getElementById("launch");
     const statusEl = document.getElementById("status");
+    const loaderEl = document.getElementById("loader");
+    const bootTextEl = document.getElementById("bootText");
     const btnLabel = launchBtn.querySelector(".label");
 
     const STATUS_VARIANTS = {
@@ -416,11 +256,24 @@
       statusEl.innerHTML = "";
     }
 
+    // While a launch attempt is running we show the spinner and hide the
+    // retry button. When it settles (failure path), the caller reveals the
+    // retry button so the user isn't stranded on a bare page.
     function setLoading(loading) {
       launchBtn.disabled = loading;
       btnLabel.textContent = loading
         ? "Starting verification…"
         : "Start KYC verification";
+      if (loading) {
+        loaderEl.hidden = false;
+        launchBtn.hidden = true;
+      }
+    }
+
+    function showRetry(message) {
+      loaderEl.hidden = true;
+      launchBtn.hidden = false;
+      if (message) bootTextEl.textContent = message;
     }
 
     function escapeHtml(s) {
@@ -779,22 +632,24 @@
       }
     }
 
-    // Prefetch is wired but intentionally NOT fired on page boot —
-    // the verified CSB reference integration kicks it off immediately
-    // before launch(), with the appId decoded from the JWT payload.
-    // See launchBtn click handler below.
+    // ────────────────────────────────────────────────────────────────────────
+    // runKyc — the whole launch sequence. Fired automatically on page boot
+    // (see bootLauncher below) and again if the user taps the retry button
+    // after a failure. Guarded so it can never run two attempts at once.
+    // ────────────────────────────────────────────────────────────────────────
+    let kycRunning = false;
 
-    launchBtn.addEventListener("click", async () => {
+    async function runKyc() {
+      if (kycRunning) return;
+      kycRunning = true;
       clearStatus();
       setLoading(true);
       try {
         ensureSdkAvailable();
         const tokenPayload = await fetchKycToken();
-        // NOTE: prefetch is no longer fired here — per the HyperVerge
-        // integration guide it must run WELL BEFORE launch, so it's now
-        // kicked off on page load (see boot prefetch below) using the
-        // configured appId/workflowId. Calling it right before launch
-        // can leave the workflow stuck loading.
+        // prefetch already fired at boot (well before launch, per the
+        // HyperVerge guide). The token fetch above also gives the
+        // prefetched workflow time to warm before we launch.
         const cfg = buildKycConfig(tokenPayload);
         // HyperKYCModule.launch invokes the handler with the result —
         // its own promise can resolve with undefined depending on the
@@ -809,7 +664,7 @@
           resolveResult(cbResult);
         };
         const launchReturn = HyperKYCModule.launch(cfg, handler);
-        // Watchdog: if the SDK doesn't mount UI within ~6s, surface a
+        // Watchdog: if the SDK doesn't mount UI within ~15s, surface a
         // clear "stuck before launch" error. The typical cause is an
         // HV-side domain whitelist miss (cceyez / zokudo_kyc_revamp →
         // Allowed Domains in the HV One dashboard).
@@ -840,6 +695,7 @@
         ]);
         const summary = describeResult(result);
         setStatus(summary.variant, summary.title, summary.detail);
+        loaderEl.hidden = true;
         // The HyperVerge SDK has handed control back — the user's run is
         // over (whether approved, declined, queued for review, cancelled,
         // or errored). Bounce them to the wallet so they aren't stranded
@@ -849,6 +705,7 @@
       } catch (err) {
         console.error("[hv-kyc] launch failed", err);
         const msg = (err && err.message) || String(err);
+        loaderEl.hidden = true;
         // "Already FULL KYC" is not a failure — the user has already
         // finished KYC on a previous run / via another channel. Zokudo
         // refuses to mint a fresh HyperVerge token because the customer
@@ -882,10 +739,11 @@
             "Could not start verification",
             msg
           );
-          // Even on a launch-side failure (HV reject, network, watchdog),
-          // send the user back to the wallet so they can retry from the
-          // dashboard. Pass kyc_status=error so the wallet can choose to
-          // re-open the KYC sheet rather than mark KYC done.
+          // Reveal the retry button so the user can re-attempt without a
+          // page reload, then also bounce back to the wallet so they can
+          // retry from the dashboard. Pass kyc_status=error so the wallet
+          // can choose to re-open the KYC sheet rather than mark KYC done.
+          showRetry();
           scheduleRedirect("danger", {
             status: "error",
             code: (err && err.code) || "launch_failed",
@@ -893,25 +751,48 @@
         }
       } finally {
         setLoading(false);
+        kycRunning = false;
       }
-    });
+    }
+
+    // Retry button (hidden until a failure surfaces it).
+    launchBtn.addEventListener("click", runKyc);
 
     // ────────────────────────────────────────────────────────────────────────
-    // Boot prefetch — warm the HyperVerge workflow assets as soon as the
-    // page + SDK are ready (NOT on launch click). The guide requires
-    // prefetch to run well before launch; firing it at boot using the
-    // configured appId/workflowId means the workflow is already warmed by
-    // the time the user taps "Start KYC". The SDK loads from a CDN <script>
-    // in <head>, so poll briefly until HyperKYCModule is defined.
-    (function bootPrefetch() {
+    // Boot — strip-to-nothing launcher. As soon as the SDK script is ready
+    // we (1) fire prefetch to warm the workflow assets, then (2) auto-run
+    // the KYC flow. There is no "Start KYC" gate any more — the page opens
+    // straight into HyperVerge. The SDK's own landing screen
+    // (showHyperVergeLanding=true) provides the user gesture for camera
+    // access. We poll briefly for the CDN <script> to define the SDK.
+    // ────────────────────────────────────────────────────────────────────────
+    (function bootLauncher() {
       var tries = 0;
       (function attempt() {
-        if (typeof HyperKYCModule !== "undefined" &&
-            typeof HyperKYCModule.prefetch === "function") {
+        var ready =
+          typeof HyperKYCModule !== "undefined" &&
+          typeof HyperKycConfig !== "undefined";
+        if (ready) {
           tryPrefetch();
+          // Give the prefetch a beat to register before launch, then go.
+          // The token fetch inside runKyc() adds further separation, which
+          // keeps the workflow from getting stuck in a loading state.
+          setTimeout(runKyc, 250);
           return;
         }
-        if (tries++ < 40) setTimeout(attempt, 150); // up to ~6s
+        if (tries++ < 40) {
+          setTimeout(attempt, 150); // up to ~6s
+          return;
+        }
+        // SDK never loaded — show an error + retry affordance instead of a
+        // spinner that hangs forever.
+        loaderEl.hidden = true;
+        setStatus(
+          "danger",
+          "Could not start verification",
+          "The verification module failed to load. Check your connection and try again."
+        );
+        showRetry();
       })();
     })();
   </script>
