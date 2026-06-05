@@ -175,17 +175,20 @@
     // credentials in this page.
 
     const CONFIG = {
-      // Zokudo wallet's KYC request endpoint. Backend wraps the
-      // HyperVerge token mint and stamps the workflow + transaction
-      // IDs into the JWT for us. Override at runtime with
-      // window.BEYOUND_KYC_TOKEN_ENDPOINT (e.g. to point at dev-api).
-      //
-      // PROD: api.spaid.in carries /zokudo/wallet/* end-to-end with
-      // CORS open for kyc.beyound.in. Dev-api blocks the origin via
-      // its ALLOWED_HOSTS env, so the dev path is unusable here.
+      // Zokudo wallet endpoints. The flow is two server calls:
+      //   1. register            — ensure the merchant's wallet exists/active
+      //   2. generate-kyc-request — mint the HyperVerge SDK token (workflow +
+      //                             transaction IDs stamped into the JWT)
+      // generate-kyc-request 404s (WALLET_NOT_FOUND) unless register ran
+      // first, so the page calls register then generate on every launch.
+      // Both take { merchantId } in the body. Override either at runtime
+      // with window.BEYOUND_KYC_REGISTER_ENDPOINT / BEYOUND_KYC_TOKEN_ENDPOINT.
+      registerEndpoint:
+        window.BEYOUND_KYC_REGISTER_ENDPOINT ||
+        "https://su-api-v2.asdfay.com/api/v1/zokudo/wallet/register",
       tokenEndpoint:
         window.BEYOUND_KYC_TOKEN_ENDPOINT ||
-        "https://api.spaid.in/backend/v2/zokudo/wallet/generate-kyc-request",
+        "https://su-api-v2.asdfay.com/api/v1/zokudo/wallet/generate-kyc-request",
       // appId + workflowId are public-safe identifiers. The page uses
       // them to call HyperKYCModule.prefetch() on first paint, which
       // warm-loads the workflow config + assets so the actual launch
@@ -370,13 +373,11 @@
     // Session forwarded by the upstream app (wallet / bills) when it
     // links to KYC via query params: kyc.beyound.in/?sid=...&mid=...
     //
-    // We deliberately fetch with credentials:"omit" (see below) because
-    // the api.spaid.in CORS layer responds with Access-Control-Allow-
-    // Origin: *, and the browser refuses to forward cookies on a
-    // wildcard ACAO. All session state must therefore live on the URL
-    // / in headers / in the body — never in a Cookie. The previous
-    // cookie-based delivery path (Domain=.beyound.in) was dead in
-    // practice and has been removed.
+    // We fetch with credentials:"omit" — the wallet API is cross-origin
+    // and serves a wildcard Access-Control-Allow-Origin, which the
+    // browser refuses to pair with cookies. Auth travels purely as the
+    // merchantId in the request body; no cookies, no custom headers, so
+    // there's nothing for a CORS preflight to reject.
     function readSessionFromUrl() {
       const params = new URLSearchParams(window.location.search);
       return {
@@ -437,46 +438,71 @@
       };
     }
 
+    // Standard JSON headers for the wallet API. No custom auth headers —
+    // merchantId in the body is the only credential, which keeps the
+    // cross-origin request a "simple" CORS request with no preflight.
+    const JSON_HEADERS = {
+      "Content-Type": "application/json",
+      accept: "application/json",
+    };
+
+    // Pull a human-readable message out of whatever error envelope the
+    // wallet API returned. Handles { detail: { message } }, { detail },
+    // { error: { message } }, and { message } shapes.
+    async function extractApiError(res, fallbackLabel, endpoint) {
+      let detail = "";
+      try {
+        const body = await res.json();
+        detail =
+          (body && body.error && body.error.message) ||
+          (body && body.detail && body.detail.message) ||
+          (body && typeof body.detail === "string" ? body.detail : "") ||
+          (body && body.message) ||
+          "";
+      } catch (_) {}
+      return new Error(
+        (detail || fallbackLabel + " returned " + res.status) +
+          " (" + endpoint + ")"
+      );
+    }
+
+    // Step 1 — ensure the merchant's Zokudo wallet exists and is active.
+    // generate-kyc-request 404s (WALLET_NOT_FOUND) without this. On an
+    // already-active wallet the backend returns 200 (already-active
+    // branch), so calling this every launch is safe + idempotent.
+    async function registerWallet(merchantId) {
+      const res = await fetch(CONFIG.registerEndpoint, {
+        method: "POST",
+        credentials: "omit",
+        headers: JSON_HEADERS,
+        body: JSON.stringify({ merchantId }),
+      });
+      if (!res.ok) {
+        throw await extractApiError(res, "Register", CONFIG.registerEndpoint);
+      }
+      return res.json().catch(() => ({}));
+    }
+
     async function fetchKycToken() {
       const prebaked = readPrebakedTokenFromUrl();
       if (prebaked) return prebaked;
-      const { sessionId, merchantId } = readSessionFromUrl();
+      const { merchantId } = readSessionFromUrl();
       if (!merchantId) {
         throw new Error(
           "Missing merchant context. Open this page from the beyound wallet so a session can be forwarded."
         );
       }
-      const headers = {
-        "Content-Type": "application/json",
-        accept: "application/json",
-      };
-      if (sessionId) headers["session-id"] = sessionId;
-      if (merchantId) headers["merchant-id"] = merchantId;
-      // credentials:"omit" — api.spaid.in returns Access-Control-Allow-
-      // Origin: * which is incompatible with credentials:"include"
-      // (browser blocks the preflight). Auth travels in the session-id
-      // / merchant-id headers and the body's merchant_id field, none of
-      // which need cookies. Do NOT switch this to "include" without
-      // first making the backend echo a specific Origin + ACAC: true.
+      // 1. Register / ensure an active wallet for this merchant.
+      await registerWallet(merchantId);
+      // 2. Generate the KYC request -> HyperVerge SDK tokens.
       const res = await fetch(CONFIG.tokenEndpoint, {
         method: "POST",
         credentials: "omit",
-        headers,
-        body: JSON.stringify({ merchant_id: merchantId }),
+        headers: JSON_HEADERS,
+        body: JSON.stringify({ merchantId }),
       });
       if (!res.ok) {
-        let detail = "";
-        try {
-          const body = await res.json();
-          detail =
-            body && (body.error?.message || body.detail || body.message);
-        } catch (_) {}
-        throw new Error(
-          (detail || "Token endpoint returned " + res.status) +
-            " (" +
-            CONFIG.tokenEndpoint +
-            ")"
-        );
+        throw await extractApiError(res, "Token endpoint", CONFIG.tokenEndpoint);
       }
       const body = await res.json();
       // Zokudo wrapper response shape:
