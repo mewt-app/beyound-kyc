@@ -475,21 +475,58 @@
       );
     }
 
+    // Statuses worth a second try. A 5xx from the wallet API is usually
+    // transient — the su-api-v2 gateway can return 502/504 on a cold-path
+    // request (the KYC token mint fans out to several upstream Zokudo
+    // calls). The 5xx error page also drops the CORS headers, so the
+    // browser surfaces it as a "Failed to fetch" TypeError rather than a
+    // readable status — hence we retry on network errors too.
+    const RETRYABLE_STATUS = new Set([502, 503, 504]);
+    const RETRY_DELAY_MS = 1500;
+
+    // POST JSON to the wallet API with one automatic retry on a transient
+    // failure (network error or 502/503/504). On a non-retryable !ok it
+    // throws the parsed API error; on success it returns the parsed body.
+    async function postJson(url, bodyObj, label) {
+      const maxRetries = 1;
+      let lastErr;
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        if (attempt > 0) {
+          await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+        }
+        let res;
+        try {
+          res = await fetch(url, {
+            method: "POST",
+            credentials: "omit",
+            headers: authHeaders(),
+            body: JSON.stringify(bodyObj),
+          });
+        } catch (netErr) {
+          // Transport/CORS-less-5xx failure → retry once, then surface.
+          lastErr = netErr;
+          if (attempt < maxRetries) continue;
+          throw netErr;
+        }
+        if (res.ok) {
+          return res.json().catch(() => ({}));
+        }
+        const apiErr = await extractApiError(res, label, url);
+        if (RETRYABLE_STATUS.has(res.status) && attempt < maxRetries) {
+          lastErr = apiErr;
+          continue;
+        }
+        throw apiErr;
+      }
+      throw lastErr || new Error(label + " failed");
+    }
+
     // Step 1 — ensure the merchant's Zokudo wallet exists and is active.
     // generate-kyc-request 404s (WALLET_NOT_FOUND) without this. On an
     // already-active wallet the backend returns 200 (already-active
     // branch), so calling this every launch is safe + idempotent.
     async function registerWallet(merchantId) {
-      const res = await fetch(CONFIG.registerEndpoint, {
-        method: "POST",
-        credentials: "omit",
-        headers: authHeaders(),
-        body: JSON.stringify({ merchantId }),
-      });
-      if (!res.ok) {
-        throw await extractApiError(res, "Register", CONFIG.registerEndpoint);
-      }
-      return res.json().catch(() => ({}));
+      return postJson(CONFIG.registerEndpoint, { merchantId }, "Register");
     }
 
     async function fetchKycToken() {
@@ -503,17 +540,13 @@
       }
       // 1. Register / ensure an active wallet for this merchant.
       await registerWallet(merchantId);
-      // 2. Generate the KYC request -> HyperVerge SDK tokens.
-      const res = await fetch(CONFIG.tokenEndpoint, {
-        method: "POST",
-        credentials: "omit",
-        headers: authHeaders(),
-        body: JSON.stringify({ merchantId }),
-      });
-      if (!res.ok) {
-        throw await extractApiError(res, "Token endpoint", CONFIG.tokenEndpoint);
-      }
-      const body = await res.json();
+      // 2. Generate the KYC request -> HyperVerge SDK tokens (auto-retries
+      //    once on a transient 502/503/504 or network error).
+      const body = await postJson(
+        CONFIG.tokenEndpoint,
+        { merchantId },
+        "Token endpoint"
+      );
       // Zokudo wrapper response shape:
       //   { success, message, access_token, workflow_id, transaction_id, kyc_record_id }
       // The access_token comes prefixed with "Bearer " — strip it before
