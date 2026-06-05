@@ -438,13 +438,22 @@
       };
     }
 
-    // Standard JSON headers for the wallet API. No custom auth headers —
-    // merchantId in the body is the only credential, which keeps the
-    // cross-origin request a "simple" CORS request with no preflight.
-    const JSON_HEADERS = {
-      "Content-Type": "application/json",
-      accept: "application/json",
-    };
+    // Headers for the wallet API. The su-api-v2 gateway authorizes zokudo
+    // calls by the session-id + merchant-id headers (same as the rally
+    // app's callApi), so we forward whatever the wallet handed us on the
+    // URL (?sid=&mid=). Without them the gateway returns 403. The body
+    // also carries merchantId. (These custom headers make it a preflighted
+    // CORS request — the gateway's allow-headers list covers them.)
+    function authHeaders() {
+      const { sessionId, merchantId } = readSessionFromUrl();
+      const h = {
+        "Content-Type": "application/json",
+        accept: "application/json",
+      };
+      if (sessionId) h["session-id"] = sessionId;
+      if (merchantId) h["merchant-id"] = merchantId;
+      return h;
+    }
 
     // Pull a human-readable message out of whatever error envelope the
     // wallet API returned. Handles { detail: { message } }, { detail },
@@ -474,7 +483,7 @@
       const res = await fetch(CONFIG.registerEndpoint, {
         method: "POST",
         credentials: "omit",
-        headers: JSON_HEADERS,
+        headers: authHeaders(),
         body: JSON.stringify({ merchantId }),
       });
       if (!res.ok) {
@@ -498,7 +507,7 @@
       const res = await fetch(CONFIG.tokenEndpoint, {
         method: "POST",
         credentials: "omit",
-        headers: JSON_HEADERS,
+        headers: authHeaders(),
         body: JSON.stringify({ merchantId }),
       });
       if (!res.ok) {
