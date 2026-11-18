@@ -63,6 +63,36 @@ endpoint URL on `window` BEFORE the inline script runs:
 <script>window.BEYOUND_KYC_TOKEN_ENDPOINT = "https://staging.api.beyound.in/kyc/token";</script>
 ```
 
+## Calling app (`app` query param / header)
+
+Apps that open this page pass their context on the URL:
+
+```
+https://kyc.beyound.in/?sid=<session-id>&mid=<merchant-id>&app=<spaid|rally>&return_url=<url>
+```
+
+`app` names the calling product. The page forwards it as an HTTP header
+named `app` on every su-api-v2 call it makes
+(`POST /api/v1/zokudo/wallet/register` and
+`POST /api/v1/zokudo/wallet/generate-kyc-request`, including the automatic
+retry):
+
+```
+app: spaid
+```
+
+- The value is trimmed and lower-cased (`?app=RALLY` is sent as `app: rally`),
+  then accepted only if it matches `^[a-z0-9_-]{1,32}$`.
+- A missing or invalid value counts as absent: the `app` header is omitted
+  entirely (never sent as an empty string), an invalid value is logged once
+  with `console.warn`, and the other headers and the request body are unchanged.
+- The page keeps no list of valid app names; the backend decides which values
+  it recognises.
+- `app` is a custom request header, so the browser preflights it. The API's
+  `Access-Control-Allow-Headers` must include `app` for origin
+  `https://kyc.beyound.in`, otherwise the browser blocks both calls whenever a
+  caller passes `?app=`.
+
 ## SDK version
 
 Pinned to `@latest` from `https://hv-web-sdk-cdn.hyperverge.co/`. For a

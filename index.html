@@ -370,8 +370,34 @@
     // Token fetch
     // ────────────────────────────────────────────────────────────────────────
 
+    // Calling app (?app=spaid | rally | ...), forwarded to the wallet API as
+    // the `app` request header so the backend knows which product the session
+    // came from. Deliberately NO allowlist of app names here — the backend
+    // decides which ones it recognises; we only enforce a header-safe shape
+    // (trimmed, lower-cased, 1-32 chars of a-z 0-9 _ -). A missing or invalid
+    // value is treated as absent and the header is omitted, never sent empty.
+    const APP_PATTERN = /^[a-z0-9_-]{1,32}$/;
+    let warnedInvalidApp = false;
+
+    function readAppFromUrl(params) {
+      const raw = params.get("app");
+      if (raw === null) return "";
+      const app = raw.trim().toLowerCase();
+      if (APP_PATTERN.test(app)) return app;
+      // The URL never changes while the page is open, but this runs once per
+      // API call, so warn once instead of on every request.
+      if (!warnedInvalidApp) {
+        warnedInvalidApp = true;
+        console.warn(
+          "[hv-kyc] ignoring invalid ?app= value " + JSON.stringify(raw.slice(0, 64)) +
+            " (want 1-32 chars of a-z, 0-9, _ or -); not sending the app header"
+        );
+      }
+      return "";
+    }
+
     // Session forwarded by the upstream app (wallet / bills) when it
-    // links to KYC via query params: kyc.beyound.in/?sid=...&mid=...
+    // links to KYC via query params: kyc.beyound.in/?sid=...&mid=...&app=...
     //
     // We fetch with credentials:"omit" — the wallet API is cross-origin
     // and serves a wildcard Access-Control-Allow-Origin, which the
@@ -383,6 +409,7 @@
       return {
         sessionId: params.get("sid") || params.get("session-id") || params.get("sessionId") || "",
         merchantId: params.get("mid") || params.get("merchant-id") || params.get("merchantId") || "",
+        app: readAppFromUrl(params),
       };
     }
 
@@ -442,16 +469,19 @@
     // calls by the session-id + merchant-id headers (same as the rally
     // app's callApi), so we forward whatever the wallet handed us on the
     // URL (?sid=&mid=). Without them the gateway returns 403. The body
-    // also carries merchantId. (These custom headers make it a preflighted
-    // CORS request — the gateway's allow-headers list covers them.)
+    // also carries merchantId. The calling app (?app=) rides along as the
+    // `app` header when present and valid, and is left out otherwise.
+    // (These custom headers make it a preflighted CORS request — the
+    // gateway's allow-headers list must cover each of them, `app` included.)
     function authHeaders() {
-      const { sessionId, merchantId } = readSessionFromUrl();
+      const { sessionId, merchantId, app } = readSessionFromUrl();
       const h = {
         "Content-Type": "application/json",
         accept: "application/json",
       };
       if (sessionId) h["session-id"] = sessionId;
       if (merchantId) h["merchant-id"] = merchantId;
+      if (app) h["app"] = app;
       return h;
     }
 
