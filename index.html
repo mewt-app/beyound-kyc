@@ -324,6 +324,7 @@
       }
       if (result && result.status) u.searchParams.set("kyc_status", result.status);
       if (result && result.code) u.searchParams.set("kyc_code", result.code);
+      if (result && result.message) u.searchParams.set("kyc_message", result.message);
       return u.toString();
     }
 
@@ -349,11 +350,13 @@
       // parent only trusts messages from *.beyound.in.
       if (isEmbedded) {
         try {
-          window.parent.postMessage({
+          const payload = {
             type: "beyound-kyc-result",
             status: (result && result.status) || "error",
             code: (result && result.code) || null,
-          }, "*");
+          };
+          if (result && result.message) payload.message = result.message;
+          window.parent.postMessage(payload, "*");
         } catch (_) {}
         return;
       }
@@ -490,8 +493,10 @@
     // { error: { message } }, and { message } shapes.
     async function extractApiError(res, fallbackLabel, endpoint) {
       let detail = "";
+      let code = "";
       try {
         const body = await res.json();
+        code = (body && body.code) || "";
         detail =
           (body && body.error && body.error.message) ||
           (body && body.detail && body.detail.message) ||
@@ -499,10 +504,18 @@
           (body && body.message) ||
           "";
       } catch (_) {}
-      return new Error(
+      const apiErr = new Error(
         (detail || fallbackLabel + " returned " + res.status) +
           " (" + endpoint + ")"
       );
+      // superback 422 { code: "ZOKUDO_WALLET_NOT_CREATED", message }: a
+      // Zokudo-side fault that repeated taps cannot fix. Tag the error so
+      // runKyc forwards it to the app; other envelopes stay untagged.
+      if (code === WALLET_NOT_CREATED_CODE) {
+        apiErr.code = code;
+        apiErr.apiMessage = detail;
+      }
+      return apiErr;
     }
 
     // Statuses worth a second try. A 5xx from the wallet API is usually
@@ -512,6 +525,7 @@
     // browser surfaces it as a "Failed to fetch" TypeError rather than a
     // readable status — hence we retry on network errors too.
     const RETRYABLE_STATUS = new Set([502, 503, 504]);
+    const WALLET_NOT_CREATED_CODE = "ZOKUDO_WALLET_NOT_CREATED";
     const RETRY_DELAY_MS = 1500;
 
     // POST JSON to the wallet API with one automatic retry on a transient
@@ -824,7 +838,22 @@
         //   - "already <anything> KYC"             (defensive)
         //   - "KYC already <verb>"                 (other phrasings)
         //   - "FULL KYC"                           (last resort)
-        if (
+        if (err && err.code === WALLET_NOT_CREATED_CODE) {
+          // Zokudo created the customer but not the wallet. Retrying cannot
+          // fix it, so no retry button and no auto-retry: show the message
+          // and hand the code + message to the app (kyc_code / kyc_message
+          // on the return URL, or code / message on the bridge).
+          setStatus(
+            "danger",
+            "Wallet setup pending",
+            err.apiMessage || msg
+          );
+          scheduleRedirect("danger", {
+            status: "error",
+            code: WALLET_NOT_CREATED_CODE,
+            message: err.apiMessage || "",
+          });
+        } else if (
           /already\s+.*\bKYC\b/i.test(msg) ||
           /\bKYC\b\s+already\b/i.test(msg) ||
           /\bFULL\s+KYC\b/i.test(msg)
